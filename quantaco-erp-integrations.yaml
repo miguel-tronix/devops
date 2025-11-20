@@ -1,0 +1,154 @@
+---
+- name: Deploy FastAPI App to Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # General settings
+    app_name: "quantaco-erp-integrations"
+    k8s_namespace: "quantaco"
+    resource_state: "present" # Use "absent" to remove all resources
+
+    # Deployment settings
+    app_image: "localhost:32000/quantaco/erp-integrations:latest"
+    app_replicas: 1
+    container_port: 8080
+
+    # PVC settings
+    pvc_name: "{{ app_name }}-pvc"
+    pvc_size: "10Gi"
+    pvc_mount_path: "/app/data" # Example mount path for persistent data
+
+    # GCP Credentials Secret settings
+    gcp_secret_name: "{{ app_name }}-gcp-creds"
+    gcp_creds_local_path: "{{ lookup('env', 'HOME') }}/.config/gcloud/application_default_credentials.json"
+    gcp_creds_container_path: "/root/.config/gcloud/application_default_credentials.json"
+
+    # Service and Ingress settings
+    service_port: 80
+    ingress_host: "quantaco.local"
+    ingress_class_name: "nginx" # Change if you use a different ingress controller
+
+  tasks:
+    - name: "Ensure Namespace '{{ k8s_namespace }}' is {{ resource_state }}"
+      kubernetes.core.k8s:
+        name: "{{ k8s_namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: "{{ resource_state }}"
+
+    - name: "Ensure PersistentVolumeClaim '{{ pvc_name }}' is {{ resource_state }}"
+      kubernetes.core.k8s:
+        state: "{{ resource_state }}"
+        definition:
+          apiVersion: v1
+          kind: PersistentVolumeClaim
+          metadata:
+            name: "{{ pvc_name }}"
+            namespace: "{{ k8s_namespace }}"
+          spec:
+            accessModes:
+              - ReadWriteOnce
+            resources:
+              requests:
+                storage: "{{ pvc_size }}"
+
+    - name: "Ensure GCP credentials secret '{{ gcp_secret_name }}' is {{ resource_state }}"
+      kubernetes.core.k8s:
+        state: "{{ resource_state }}"
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ gcp_secret_name }}"
+            namespace: "{{ k8s_namespace }}"
+          type: Opaque
+          data:
+            # The key here must match the final filename in the container
+            application_default_credentials.json: "{{ lookup('file', gcp_creds_local_path) | b64encode }}"
+
+    - name: "Ensure Deployment '{{ app_name }}' is {{ resource_state }}"
+      kubernetes.core.k8s:
+        state: "{{ resource_state }}"
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: "{{ app_name }}"
+            namespace: "{{ k8s_namespace }}"
+            labels:
+              app: "{{ app_name }}"
+          spec:
+            replicas: "{{ app_replicas }}"
+            selector:
+              matchLabels:
+                app: "{{ app_name }}"
+            template:
+              metadata:
+                labels:
+                  app: "{{ app_name }}"
+              spec:
+                containers:
+                  - name: "{{ app_name }}"
+                    image: "{{ app_image }}"
+                    ports:
+                      - containerPort: "{{ container_port }}"
+                    volumeMounts:
+                      - name: gcp-creds-volume
+                        mountPath: "{{ gcp_creds_container_path }}"
+                        subPath: "application_default_credentials.json" # Mount the file, not the directory
+                        readOnly: true
+                      - name: "{{ pvc_name }}"
+                        mountPath: "{{ pvc_mount_path }}"
+                volumes:
+                  - name: "{{ pvc_name }}"
+                    persistentVolumeClaim:
+                      claimName: "{{ pvc_name }}"
+                  - name: gcp-creds-volume
+                    secret:
+                      secretName: "{{ gcp_secret_name }}"
+
+    - name: "Ensure Service '{{ app_name }}' is {{ resource_state }}"
+      kubernetes.core.k8s:
+        state: "{{ resource_state }}"
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: "{{ app_name }}"
+            namespace: "{{ k8s_namespace }}"
+          spec:
+            selector:
+              app: "{{ app_name }}"
+            ports:
+              - protocol: TCP
+                port: "{{ service_port }}"
+                targetPort: "{{ container_port }}"
+            type: ClusterIP
+
+    - name: "Ensure Ingress for '{{ ingress_host }}' is {{ resource_state }}"
+      kubernetes.core.k8s:
+        state: "{{ resource_state }}"
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: "{{ app_name }}-ingress"
+            namespace: "{{ k8s_namespace }}"
+            annotations:
+              # This annotation is often required for NGINX Ingress Controller
+              kubernetes.io/ingress.class: "{{ ingress_class_name }}"
+          spec:
+            ingressClassName: "{{ ingress_class_name }}"
+            rules:
+              - host: "{{ ingress_host }}"
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: "{{ app_name }}"
+                          port:
+                            number: "{{ service_port }}"
