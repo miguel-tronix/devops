@@ -30,6 +30,9 @@
     ingress_host: "quantaco.local"
     ingress_class_name: "nginx" # Change if you use a different ingress controller
 
+    # Quantaco project ID
+    quantaco_project_id: "wranglr-development"
+
   tasks:
     - name: "Ensure Namespace '{{ k8s_namespace }}' is {{ resource_state }}"
       kubernetes.core.k8s:
@@ -94,6 +97,9 @@
                     image: "{{ app_image }}"
                     ports:
                       - containerPort: "{{ container_port }}"
+                    env:
+                      - name: PROJECT_ID
+                        value: "{{ quantaco_project_id }}"
                     volumeMounts:
                       - name: gcp-creds-volume
                         mountPath: "{{ gcp_creds_container_path }}"
