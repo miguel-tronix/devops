@@ -7,11 +7,11 @@
   vars:
     # General settings
     app_name: "customer-configurator-backend"
-    k8s_namespace: "quantaco"
+    k8s_namespace: "qcc-backend"
     resource_state: "present" # Use "absent" to remove all resources
 
     # Deployment settings
-    app_image: "localhost:32000/quantaco/customer-configurator-backend:latest"
+    app_image: "localhost:32000/microservices/customer-configurator-backend:latest"
     app_replicas: 1
     container_port: 8080
 
@@ -23,7 +23,7 @@
     # Django secret (local file will be base64-encoded into a k8s secret)
     django_secret_name: "{{ app_name }}-secret"
     django_secret_local_path: "{{ lookup('env', 'HOME') }}/.config/gcloud/application_default_credentials.json"
-    django_database: "postgres://user:password@postgres-service:5432/customer_configurator_db"
+    django_database: "postgres://{{db_user}}:{{db_password}}@{{db_host}}:{{db_port}}/customer_configurator_db"
 
     # GCP Credentials Secret settings
     gcp_secret_name: "{{ app_name }}-gcp-creds"
@@ -32,7 +32,7 @@
 
     # Service and Ingress settings
     service_port: 80
-    ingress_host: "quantaco.cc.local"
+    ingress_host: "microservices.cc.local"
     ingress_class_name: "nginx"
 
   tasks:

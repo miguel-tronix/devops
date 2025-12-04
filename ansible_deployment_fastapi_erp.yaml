@@ -6,12 +6,12 @@
 
   vars:
     # General settings
-    app_name: "quantaco-erp-integrations"
-    k8s_namespace: "quantaco"
+    app_name: "microservices-erp-integrations"
+    k8s_namespace: "microservices"
     resource_state: "present" # Use "absent" to remove all resources
 
     # Deployment settings
-    app_image: "localhost:32000/quantaco/erp-integrations:latest"
+    app_image: "localhost:32000/microservices/erp-integrations:latest"
     app_replicas: 1
     container_port: 8080
 
@@ -27,11 +27,11 @@
 
     # Service and Ingress settings
     service_port: 80
-    ingress_host: "quantaco.erp.local"
+    ingress_host: "microservices.erp.local"
     ingress_class_name: "nginx" # Change if you use a different ingress controller
 
-    # Quantaco project ID
-    quantaco_project_id: "wranglr-development"
+    # microservices project ID
+    microservices_project_id: "{{project_id}}"
 
   tasks:
     - name: "Ensure Namespace '{{ k8s_namespace }}' is {{ resource_state }}"
@@ -99,7 +99,7 @@
                       - containerPort: "{{ container_port }}"
                     env:
                       - name: PROJECT_ID
-                        value: "{{ quantaco_project_id }}"
+                        value: "{{ microservices_project_id }}"
                       - name: ENV
                         value: uat
                     volumeMounts:
