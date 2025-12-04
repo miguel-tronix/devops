@@ -1,2 +1,4 @@
 .vscode/*.*
 *.lock
+secrets.token
+application_default_credentials.json

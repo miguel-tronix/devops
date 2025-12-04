@@ -1,0 +1,45 @@
+---
+- name: Deploy PostgreSQL cluster - Simple version
+  hosts: localhost
+  connection: local
+  vars:
+    namespace: "postgresql"
+    cluster_name: "postgresql-cluster"
+    postgresql_password: ""
+    
+  tasks:
+    
+    - name: Create PostgreSQL cluster manifest
+      kubernetes.core.k8s:
+        api_version: postgresql.cnpg.io/v1
+        kind: Cluster
+        name: "{{ cluster_name }}"
+        namespace: "{{ namespace }}"
+        state: present
+        definition:
+          metadata:
+            name: "{{ cluster_name }}"
+            namespace: "{{ namespace }}"
+          spec:
+            instances: 2
+            storage:
+              size: 5Gi
+            bootstrap:
+              initdb:
+                database: myapp
+                owner: appuser
+            superuserSecret:
+              name: "{{ cluster_name }}-superuser"
+    
+    - name: Create superuser secret
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ cluster_name }}-superuser"
+            namespace: "{{ namespace }}"
+          type: Opaque
+          data:
+            password: "{{ postgresql_password | b64encode }}"

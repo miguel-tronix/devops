@@ -1,0 +1,103 @@
+---
+- name: Deploy Redis to Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    app_name: "redis"
+    k8s_namespace: "redis"
+    resource_state: "present" # Use "absent" to remove all resources
+
+    # Redis settings
+    redis_image: "redis:7-alpine"
+    redis_port: 6379
+    redis_pvc_size: "1Gi"
+    redis_pvc_name: "redis-pvc"
+    redis_configmap_name: "redis-config"
+
+  tasks:
+    - name: "Ensure Namespace '{{ k8s_namespace }}' is present"
+      kubernetes.core.k8s:
+        name: "{{ k8s_namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: "Ensure Redis ConfigMap '{{ redis_configmap_name }}' is {{ resource_state }}"
+      kubernetes.core.k8s:
+        state: "{{ resource_state }}"
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: "{{ redis_configmap_name }}"
+            namespace: "{{ k8s_namespace }}"
+          data:
+            redis.conf: |
+              maxmemory 256mb
+              maxmemory-policy allkeys-lru
+
+    - name: "Ensure Redis StatefulSet '{{ app_name }}' is {{ resource_state }}"
+      kubernetes.core.k8s:
+        state: "{{ resource_state }}"
+        definition:
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: "{{ app_name }}"
+            namespace: "{{ k8s_namespace }}"
+          spec:
+            selector:
+              matchLabels:
+                app: "{{ app_name }}"
+            serviceName: "{{ app_name }}"
+            replicas: 1
+            template:
+              metadata:
+                labels:
+                  app: "{{ app_name }}"
+              spec:
+                containers:
+                - name: "{{ app_name }}"
+                  image: "{{ redis_image }}"
+                  command:
+                    - "redis-server"
+                    - "/etc/redis/redis.conf"
+                  ports:
+                  - containerPort: "{{ redis_port }}"
+                  volumeMounts:
+                  - name: "{{ redis_pvc_name }}"
+                    mountPath: /data
+                  - name: config
+                    mountPath: /etc/redis
+                volumes:
+                - name: config
+                  configMap:
+                    name: "{{ redis_configmap_name }}"
+            volumeClaimTemplates:
+            - metadata:
+                name: "{{ redis_pvc_name }}"
+              spec:
+                accessModes: [ "ReadWriteOnce" ]
+                resources:
+                  requests:
+                    storage: "{{ redis_pvc_size }}"
+    - name: "Ensure Redis Service '{{ app_name }}' is {{ resource_state }}"
+      kubernetes.core.k8s:
+        state: "{{ resource_state }}"
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: "{{ app_name }}"
+            namespace: "{{ k8s_namespace }}"
+          spec:
+            selector:
+              app: "{{ app_name }}"
+            ports:
+              - port: "{{ redis_port }}"
+                targetPort: "{{ redis_port }}"
+            type: ClusterIP
+
+    
