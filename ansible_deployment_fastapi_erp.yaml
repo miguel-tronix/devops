@@ -31,6 +31,7 @@
     ingress_class_name: "nginx" # Change if you use a different ingress controller
 
     # microservices project ID
+    project_id: "wranglr-development"
     microservices_project_id: "{{project_id}}"
 
   tasks:
@@ -101,7 +102,7 @@
                       - name: PROJECT_ID
                         value: "{{ microservices_project_id }}"
                       - name: ENV
-                        value: uat
+                        value: dev
                     volumeMounts:
                       - name: gcp-creds-volume
                         mountPath: "{{ gcp_creds_container_path }}"

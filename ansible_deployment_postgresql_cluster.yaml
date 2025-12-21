@@ -6,6 +6,8 @@
     namespace: "postgresql"
     cluster_name: "postgresql-cluster"
     postgresql_password: ""
+    postgresql_user: "postgres"
+    postgresql_db: "postgres"
     
   tasks:
     
@@ -26,8 +28,8 @@
               size: 5Gi
             bootstrap:
               initdb:
-                database: myapp
-                owner: appuser
+                database: "{{ postgresql_db }}"
+                owner: "{{ postgresql_user }}"
             superuserSecret:
               name: "{{ cluster_name }}-superuser"
     
