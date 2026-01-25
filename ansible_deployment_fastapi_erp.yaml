@@ -13,7 +13,7 @@
     # Deployment settings
     app_image: "localhost:32000/microservices/erp-integrations:latest"
     app_replicas: 1
-    container_port: 8080
+    container_port: 8800
 
     # PVC settings
     pvc_name: "{{ app_name }}-pvc"

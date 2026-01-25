@@ -1,0 +1,175 @@
+---
+- name: Run MSBC Smoke Tests in Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    # Use same app name as main deployment
+    app_name: "microservices-erp-integrations"
+    job_name: "{{ app_name }}-smoke-tests"
+    k8s_namespace: "microservices"
+
+    # Use same image as main app
+    app_image: "localhost:32000/microservices/erp-integrations:latest"
+
+    # GCP Credentials Secret (reuse from main deployment)
+    gcp_secret_name: "{{ app_name }}-gcp-creds"
+    gcp_creds_container_path: "/root/.config/gcloud/application_default_credentials.json"
+
+    # Smoke test configuration from environment
+    smoke_test_api_key: "{{ lookup('env', 'SMOKE_TEST_API_KEY') | default('', true) }}"
+    smoke_test_erp_venue_id: "{{ lookup('env', 'SMOKE_TEST_ERP_VENUE_ID') | default('', true) }}"
+    smoke_test_origin: "{{ lookup('env', 'SMOKE_TEST_ORIGIN') | default('https://smoke-tests.quantaco.co', true) }}"
+
+    # Project settings
+    project_id: "wranglr-development"
+
+  tasks:
+    - name: "Validate required environment variables"
+      fail:
+        msg: "{{ item.name }} environment variable is required"
+      when: item.value == ""
+      loop:
+        - { name: "SMOKE_TEST_API_KEY", value: "{{ smoke_test_api_key }}" }
+        - { name: "SMOKE_TEST_ERP_VENUE_ID", value: "{{ smoke_test_erp_venue_id }}" }
+
+    - name: "Delete previous smoke test job if exists"
+      kubernetes.core.k8s:
+        state: absent
+        api_version: batch/v1
+        kind: Job
+        name: "{{ job_name }}"
+        namespace: "{{ k8s_namespace }}"
+      ignore_errors: true
+
+    - name: "Wait for previous job pods to terminate"
+      pause:
+        seconds: 5
+
+    - name: "Create/Update smoke test secrets"
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: "{{ job_name }}-secrets"
+            namespace: "{{ k8s_namespace }}"
+          type: Opaque
+          stringData:
+            api-key: "{{ smoke_test_api_key }}"
+            erp-venue-id: "{{ smoke_test_erp_venue_id }}"
+
+    - name: "Create smoke test Job"
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: batch/v1
+          kind: Job
+          metadata:
+            name: "{{ job_name }}"
+            namespace: "{{ k8s_namespace }}"
+            labels:
+              app: "{{ app_name }}"
+              component: smoke-tests
+          spec:
+            backoffLimit: 1
+            ttlSecondsAfterFinished: 3600
+            template:
+              metadata:
+                labels:
+                  app: "{{ app_name }}"
+                  component: smoke-tests
+              spec:
+                restartPolicy: Never
+                containers:
+                  - name: smoke-tests
+                    image: "{{ app_image }}"
+                    imagePullPolicy: Always
+                    command: ["poetry", "run", "pytest"]
+                    args:
+                      - "tests/apps/msbc/smoke_tests.py"
+                      - "-v"
+                      - "--tb=short"
+                      - "-m"
+                      - "smoke"
+                      - "--no-header"
+                    env:
+                      - name: SMOKE_TEST_TARGET_URL
+                        value: "http://{{ app_name }}"
+                      - name: SMOKE_TEST_API_KEY
+                        valueFrom:
+                          secretKeyRef:
+                            name: "{{ job_name }}-secrets"
+                            key: api-key
+                      - name: SMOKE_TEST_ERP_VENUE_ID
+                        valueFrom:
+                          secretKeyRef:
+                            name: "{{ job_name }}-secrets"
+                            key: erp-venue-id
+                      - name: SMOKE_TEST_ORIGIN
+                        value: "{{ smoke_test_origin }}"
+                      - name: PROJECT_ID
+                        value: "{{ project_id }}"
+                      - name: ENV
+                        value: dev
+                    volumeMounts:
+                      - name: gcp-creds-volume
+                        mountPath: "{{ gcp_creds_container_path }}"
+                        subPath: "application_default_credentials.json"
+                        readOnly: true
+                volumes:
+                  - name: gcp-creds-volume
+                    secret:
+                      secretName: "{{ gcp_secret_name }}"
+
+    - name: "Wait for smoke test job to complete (timeout: 5 minutes)"
+      kubernetes.core.k8s_info:
+        api_version: batch/v1
+        kind: Job
+        name: "{{ job_name }}"
+        namespace: "{{ k8s_namespace }}"
+      register: job_status
+      until: >
+        (job_status.resources | length > 0) and
+        (job_status.resources[0].status.succeeded is defined or
+         job_status.resources[0].status.failed is defined)
+      retries: 60
+      delay: 5
+
+    - name: "Get smoke test pod name"
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ k8s_namespace }}"
+        label_selectors:
+          - "job-name={{ job_name }}"
+      register: smoke_test_pods
+
+    - name: "Get smoke test logs"
+      kubernetes.core.k8s_log:
+        namespace: "{{ k8s_namespace }}"
+        name: "{{ smoke_test_pods.resources[0].metadata.name }}"
+      register: smoke_test_logs
+      when: smoke_test_pods.resources | length > 0
+
+    - name: "Display smoke test results"
+      debug:
+        msg: "{{ smoke_test_logs.log | default('No logs available') | split('\n') }}"
+      when: smoke_test_logs is defined
+
+    - name: "Check smoke test result"
+      set_fact:
+        smoke_tests_passed: "{{ job_status.resources[0].status.succeeded | default(0) | int > 0 }}"
+        smoke_tests_failed: "{{ job_status.resources[0].status.failed | default(0) | int > 0 }}"
+
+    - name: "Report smoke test success"
+      debug:
+        msg: "✅ MSBC Smoke Tests PASSED"
+      when: smoke_tests_passed
+
+    - name: "Fail if smoke tests failed"
+      fail:
+        msg: "❌ MSBC Smoke Tests FAILED - Check logs above for details"
+      when: smoke_tests_failed
