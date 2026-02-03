@@ -11,28 +11,29 @@
     k8s_namespace: "microservices"
 
     # Use same image as main app
-    app_image: "localhost:32000/microservices/erp-integrations:latest"
+    app_image: "localhost:32000/microservices/erp-integrations:refactor.0.26"
 
     # GCP Credentials Secret (reuse from main deployment)
-    gcp_secret_name: "{{ app_name }}-gcp-creds"
+    gcp_secret_name: "microservices-erp-integrations-gcp-creds"
     gcp_creds_container_path: "/root/.config/gcloud/application_default_credentials.json"
 
     # Smoke test configuration from environment
     smoke_test_api_key: "{{ lookup('env', 'SMOKE_TEST_API_KEY') | default('', true) }}"
-    smoke_test_erp_venue_id: "{{ lookup('env', 'SMOKE_TEST_ERP_VENUE_ID') | default('', true) }}"
-    smoke_test_origin: "{{ lookup('env', 'SMOKE_TEST_ORIGIN') | default('https://smoke-tests.quantaco.co', true) }}"
+    smoke_test_erp_venue_id: "{{ lookup('env', 'SMOKE_TEST_ERP_VENUE_ID') | default('f4a7d080-0069-f011-8eef-6045bde6e40c', true) }}"
+    smoke_test_erp_id: "{{ lookup('env', 'SMOKE_TEST_ERP_ID') | default('b8f7b107-c1cc-4e76-a3e3-2d7fa7f1e226', true) }}"
+    smoke_test_origin: "{{ lookup('env', 'SMOKE_TEST_ORIGIN') | default('https://dev-erpintegrations-svc-wecyoipxga-ts.a.run.app', true) }}"
 
     # Project settings
     project_id: "wranglr-development"
 
   tasks:
-    - name: "Validate required environment variables"
-      fail:
-        msg: "{{ item.name }} environment variable is required"
-      when: item.value == ""
-      loop:
-        - { name: "SMOKE_TEST_API_KEY", value: "{{ smoke_test_api_key }}" }
-        - { name: "SMOKE_TEST_ERP_VENUE_ID", value: "{{ smoke_test_erp_venue_id }}" }
+    # - name: "Validate required environment variables"
+    #   fail:
+    #     msg: "{{ item.name }} environment variable is required"
+    #   when: item.value == ""
+    #   loop:
+    #     - { name: "SMOKE_TEST_API_KEY", value: "{{ smoke_test_api_key }}" }
+    #     - { name: "SMOKE_TEST_ERP_VENUE_ID", value: "{{ smoke_test_erp_venue_id }}" }
 
     - name: "Delete previous smoke test job if exists"
       kubernetes.core.k8s:
@@ -47,19 +48,19 @@
       pause:
         seconds: 5
 
-    - name: "Create/Update smoke test secrets"
-      kubernetes.core.k8s:
-        state: present
-        definition:
-          apiVersion: v1
-          kind: Secret
-          metadata:
-            name: "{{ job_name }}-secrets"
-            namespace: "{{ k8s_namespace }}"
-          type: Opaque
-          stringData:
-            api-key: "{{ smoke_test_api_key }}"
-            erp-venue-id: "{{ smoke_test_erp_venue_id }}"
+    # - name: "Create/Update smoke test secrets"
+    #   kubernetes.core.k8s:
+    #     state: present
+    #     definition:
+    #       apiVersion: v1
+    #       kind: Secret
+    #       metadata:
+    #         name: "{{ job_name }}-secrets"
+    #         namespace: "{{ k8s_namespace }}"
+    #       type: Opaque
+    #       stringData:
+    #         api-key: "{{ smoke_test_api_key }}"
+    #         erp-venue-id: "{{ smoke_test_erp_venue_id }}"
 
     - name: "Create smoke test Job"
       kubernetes.core.k8s:
@@ -97,7 +98,7 @@
                       - "--no-header"
                     env:
                       - name: SMOKE_TEST_TARGET_URL
-                        value: "http://{{ app_name }}"
+                        value: "https://dev-erpintegrations-svc-wecyoipxga-ts.a.run.app"
                       - name: SMOKE_TEST_API_KEY
                         valueFrom:
                           secretKeyRef:
@@ -108,6 +109,8 @@
                           secretKeyRef:
                             name: "{{ job_name }}-secrets"
                             key: erp-venue-id
+                      - name: SMOKE_TEST_ERP_ID
+                        value: "{{ smoke_test_erp_id }}"
                       - name: SMOKE_TEST_ORIGIN
                         value: "{{ smoke_test_origin }}"
                       - name: PROJECT_ID
