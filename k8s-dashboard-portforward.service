@@ -1,0 +1,19 @@
+[Unit]
+Description=Kubernetes Dashboard Port Forward Service
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/home/migtronix/ansible/ai-workloads/devops/k8dashboard-port-forward.sh
+Restart=always
+RestartSec=10
+User=migtronix
+StandardOutput=journal
+StandardError=journal
+
+# Environment variables (if needed for kubectl)
+Environment="KUBECONFIG=/home/migtronix/.kube/config"
+
+[Install]
+WantedBy=multi-user.target

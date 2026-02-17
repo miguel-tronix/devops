@@ -13,7 +13,7 @@
     # Deployment settings
     app_image: "localhost:32000/microservices/erp-integrations:latest"
     app_replicas: 3
-    container_port: 8080
+    container_port: 8800
 
     # PVC settings
     pvc_name: "{{ app_name }}-pvc"
@@ -31,8 +31,16 @@
     ingress_class_name: "nginx" # Change if you use a different ingress controller
 
     # microservices project ID
+    env: "dev"
     project_id: "wranglr-development"
     microservices_project_id: "{{project_id}}"
+    myob_erp_secret: "DataSource-ERP-56"
+    qconfig_url: "https://dev-customer-hierarchy-svc-wecyoipxga-ts.a.run.app"
+    redis_host: "redis-service"
+    redis_port: 6379
+    pagination_default_page_size: "500"
+    pagination_concurrent_page_requests: "5"
+
 
   tasks:
     - name: "Ensure Namespace '{{ k8s_namespace }}' is {{ resource_state }}"
@@ -99,10 +107,20 @@
                     ports:
                       - containerPort: "{{ container_port }}"
                     env:
+                      - name: PAGINATION_DEFAULT_PAGE_SIZE
+                        value: "{{ pagination_default_page_size }}"
+                      - name: PAGINATION_CONCURRENT_PAGE_REQUESTS
+                        value: "{{ pagination_concurrent_page_requests }}"
                       - name: PROJECT_ID
                         value: "{{ microservices_project_id }}"
                       - name: ENV
-                        value: dev
+                        value: "{{ env }}"
+                      - name: QCONFIG_URL
+                        value: "{{ qconfig_url }}"
+                      - name: REDIS_HOST
+                        value: "{{ redis_host }}"
+                      - name: MYOB_ERP_SECRET
+                        value: "{{ myob_erp_secret }}"
                     volumeMounts:
                       - name: gcp-creds-volume
                         mountPath: "{{ gcp_creds_container_path }}"

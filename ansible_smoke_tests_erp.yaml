@@ -11,7 +11,7 @@
     k8s_namespace: "microservices"
 
     # Use same image as main app
-    app_image: "localhost:32000/microservices/erp-integrations:refactor.0.26"
+    app_image: "localhost:32000/microservices/erp-integrations:latest"
 
     # GCP Credentials Secret (reuse from main deployment)
     gcp_secret_name: "microservices-erp-integrations-gcp-creds"
@@ -27,13 +27,13 @@
     project_id: "wranglr-development"
 
   tasks:
-    # - name: "Validate required environment variables"
-    #   fail:
-    #     msg: "{{ item.name }} environment variable is required"
-    #   when: item.value == ""
-    #   loop:
-    #     - { name: "SMOKE_TEST_API_KEY", value: "{{ smoke_test_api_key }}" }
-    #     - { name: "SMOKE_TEST_ERP_VENUE_ID", value: "{{ smoke_test_erp_venue_id }}" }
+    #- name: "Validate required environment variables"
+    #  fail:
+    #    msg: "{{ item.name }} environment variable is required"
+    #  when: item.value == ""
+    #  loop:
+    #    - { name: "SMOKE_TEST_API_KEY", value: "{{ smoke_test_api_key }}" }
+    #    - { name: "SMOKE_TEST_ERP_VENUE_ID", value: "{{ smoke_test_erp_venue_id }}" }
 
     - name: "Delete previous smoke test job if exists"
       kubernetes.core.k8s:
@@ -48,19 +48,19 @@
       pause:
         seconds: 5
 
-    # - name: "Create/Update smoke test secrets"
-    #   kubernetes.core.k8s:
-    #     state: present
-    #     definition:
-    #       apiVersion: v1
-    #       kind: Secret
-    #       metadata:
-    #         name: "{{ job_name }}-secrets"
-    #         namespace: "{{ k8s_namespace }}"
-    #       type: Opaque
-    #       stringData:
-    #         api-key: "{{ smoke_test_api_key }}"
-    #         erp-venue-id: "{{ smoke_test_erp_venue_id }}"
+      #- name: "Create/Update smoke test secrets"
+      # kubernetes.core.k8s:
+      #  state: present
+      #  definition:
+      #    apiVersion: v1
+      #    kind: Secret
+      #    metadata:
+      #      name: "{{ job_name }}-secrets"
+      #      namespace: "{{ k8s_namespace }}"
+      #    type: Opaque
+      #    stringData:
+      #      api-key: "{{ smoke_test_api_key }}"
+      #      erp-venue-id: "{{ smoke_test_erp_venue_id }}"
 
     - name: "Create smoke test Job"
       kubernetes.core.k8s:
@@ -98,7 +98,7 @@
                       - "--no-header"
                     env:
                       - name: SMOKE_TEST_TARGET_URL
-                        value: "https://dev-erpintegrations-svc-wecyoipxga-ts.a.run.app"
+                        value: "{{ smoke_test_origin }}"
                       - name: SMOKE_TEST_API_KEY
                         valueFrom:
                           secretKeyRef:

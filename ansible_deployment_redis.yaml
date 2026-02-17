@@ -1,0 +1,78 @@
+---
+- name: Deploy Redis to Kubernetes in one file
+  hosts: localhost
+  connection: local
+  vars:
+    redis_namespace: microservices
+    redis_image: redis:7-alpine
+    
+  tasks:
+    - name: Create namespace
+      kubernetes.core.k8s:
+        api_version: v1
+        kind: Namespace
+        name: "{{ redis_namespace }}"
+        state: present
+    
+    - name: Deploy Redis Deployment
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: redis
+            namespace: "{{ redis_namespace }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: redis
+            template:
+              metadata:
+                labels:
+                  app: redis
+              spec:
+                containers:
+                - name: redis
+                  image: "{{ redis_image }}"
+                  ports:
+                  - containerPort: 6379
+                  resources:
+                    requests:
+                      memory: "64Mi"
+                      cpu: "50m"
+                    limits:
+                      memory: "128Mi"
+                      cpu: "100m"
+    
+    - name: Deploy Redis Service
+      kubernetes.core.k8s:
+        state: present
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: redis-service
+            namespace: "{{ redis_namespace }}"
+          spec:
+            selector:
+              app: redis
+            ports:
+            - port: 6379
+              targetPort: 6379
+    
+    - name: Verify deployment
+      kubernetes.core.k8s_info:
+        kind: Pod
+        namespace: "{{ redis_namespace }}"
+        label_selectors:
+          - "app = redis"
+      register: redis_pods
+      
+    - name: Display deployment status
+      debug:
+        msg:
+          - "Redis deployed to namespace: {{ redis_namespace }}"
+          - "Pod status: {{ redis_pods.resources[0].status.phase }}"
+          - "Access via: redis-service.{{ redis_namespace }}.svc.cluster.local:6379"

@@ -1,0 +1,43 @@
+---
+- name: Deploy Redis via Helm
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Add Bitnami Helm repo
+      community.kubernetes.helm_repository:
+        name: bitnami
+        repo_url: https://charts.bitnami.com/bitnami
+    
+    - name: Deploy Redis via Helm
+      community.kubernetes.helm:
+        name: redis
+        chart_ref: bitnami/redis
+        chart_version: "18.0.0"  # Pin version for reproducibility
+        release_namespace: microservices
+        values:
+          architecture: standalone
+          auth:
+            enabled: false
+          master:
+            persistence:
+              enabled: false
+            resources:
+              requests:
+                memory: 64Mi
+                cpu: 50m
+          replica:
+            replicaCount: 0
+    
+    - name: Get Redis service
+      kubernetes.core.k8s_info:
+        kind: Service
+        namespace: microservices
+        name: redis-master
+      register: redis_service
+    
+    - name: Display connection info
+      debug:
+        msg:
+          - "Redis deployed via Helm!"
+          - "Service: {{ redis_service.resources[0].metadata.name }}.redis-ns.svc.cluster.local:6379"
+          - "Test: kubectl port-forward -n redis-ns svc/redis-master 6379:6379"
