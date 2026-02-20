@@ -1,0 +1,36 @@
+# Argo CD Application for Redis Cluster
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: redis-cluster
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: registry-1.docker.io/bitnamicharts
+    targetRevision: 24.1.3
+    chart: redis
+    helm:
+      values: |
+        architecture: replication # Standard master-replica setup
+        auth:
+          enabled: true
+          existingSecret: "redis-secret"
+        master:
+          persistence:
+            size: 5Gi
+        replica:
+          replicaCount: 2
+          persistence:
+            size: 5Gi
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cache
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

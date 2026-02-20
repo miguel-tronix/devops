@@ -1,0 +1,23 @@
+# Git-based PostgreSQL Application (CloudNativePG)
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgresql-cnpg
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/your-org/your-repo.git # Point to your repo
+    targetRevision: HEAD
+    path: devops/k8s/postgresql # Path to CNPG manifests in your repo
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: database
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

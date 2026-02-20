@@ -8,7 +8,7 @@
     # General settings
     app_name: "microservices-erp-integrations"
     k8s_namespace: "microservices"
-    resource_state: "present" # Use "absent" to remove all resources
+    resource_state: "absent" # Use "absent" to remove all resources
 
     # Deployment settings
     app_image: "localhost:32000/microservices/erp-integrations:latest"

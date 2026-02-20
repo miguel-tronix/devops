@@ -1,0 +1,28 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgresql-cluster
+  namespace: database
+spec:
+  instances: 3
+  
+  # Image used for the cluster
+  imageName: ghcr.io/cloudnative-pg/postgresql:17
+
+  storage:
+    size: 10Gi
+  
+  bootstrap:
+    initdb:
+      database: "app_db"
+      owner: "app_user"
+      secret:
+        name: postgresql-app-user-creds
+  
+  # Enable backup (optional)
+  # backup:
+  #   barmanObjectStore:
+  #     ...
+
+  monitoring:
+    enablePodMonitor: true

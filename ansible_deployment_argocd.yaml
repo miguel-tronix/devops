@@ -1,0 +1,95 @@
+---
+- name: Deploy Argo CD via Helm
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    argocd_namespace: "argocd"
+    argocd_chart_version: "7.7.0"
+    resource_state: "present"
+    ingress_host: "argocd.k8s.local"
+    ingress_class_name: "nginx"
+
+  tasks:
+    - name: Ensure Argo CD namespace exists
+      kubernetes.core.k8s:
+        name: "{{ argocd_namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Add Argo CD Helm repository
+      kubernetes.core.helm_repository:
+        name: argo
+        repo_url: https://argoproj.github.io/argo-helm
+
+    - name: Deploy Argo CD via Helm
+      # Workaround: Using command because kubernetes.core.helm passes unsupported '--all' flag to this Helm version
+      ansible.builtin.command: >
+        /snap/bin/helm upgrade --install argocd argo/argo-cd
+        --version {{ argocd_chart_version }}
+        --namespace {{ argocd_namespace }}
+        --set server.service.type=ClusterIP
+        --set configs.params."server\.insecure"=true
+      register: helm_result
+      changed_when: "'deployed' in helm_result.stdout or 'upgraded' in helm_result.stdout"
+      when: resource_state == "present"
+
+    - name: Ensure Ingress for Argo CD is {{ resource_state }}
+      kubernetes.core.k8s:
+        state: "{{ resource_state }}"
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: Ingress
+          metadata:
+            name: argocd-server-ingress
+            namespace: "{{ argocd_namespace }}"
+            annotations:
+              kubernetes.io/ingress.class: "{{ ingress_class_name }}"
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+              nginx.ingress.kubernetes.io/ssl-redirect: "false"
+              nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+              nginx.ingress.kubernetes.io/hsts: "false"
+          spec:
+            ingressClassName: "{{ ingress_class_name }}"
+            rules:
+              - host: "{{ ingress_host }}"
+                http:
+                  paths:
+                    - path: /
+                      pathType: Prefix
+                      backend:
+                        service:
+                          name: argocd-server
+                          port:
+                            number: 80
+
+    - name: Wait for Argo CD server to be ready
+      kubernetes.core.k8s_info:
+        kind: Deployment
+        name: argocd-server
+        namespace: "{{ argocd_namespace }}"
+      register: argocd_server_deploy
+      until: argocd_server_deploy.resources[0].status.readyReplicas | default(0) > 0
+      retries: 30
+      delay: 10
+      when: resource_state == "present"
+
+    - name: Get Argo CD admin password
+      kubernetes.core.k8s_info:
+        kind: Secret
+        name: argocd-initial-admin-secret
+        namespace: "{{ argocd_namespace }}"
+      register: argocd_admin_secret
+      when: resource_state == "present"
+
+    - name: Display connection info
+      ansible.builtin.debug:
+        msg:
+          - "Argo CD deployed successfully!"
+          - "Namespace: {{ argocd_namespace }}"
+          - "Ingress Host: {{ ingress_host }}"
+          - "Admin password: {{ argocd_admin_secret.resources[0].data.password | b64decode if argocd_admin_secret.resources is defined and argocd_admin_secret.resources | length > 0 else 'Initial secret not found' }}"
+          - "To access UI: http://{{ ingress_host }} (ensure your hosts file is updated)"
+      when: resource_state == "present"
