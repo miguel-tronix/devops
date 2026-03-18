@@ -8,9 +8,8 @@
     postgresql_password: ""
     postgresql_user: "postgres"
     postgresql_db: "postgres"
-    
+
   tasks:
-    
     - name: Create PostgreSQL cluster manifest
       kubernetes.core.k8s:
         api_version: postgresql.cnpg.io/v1
@@ -25,14 +24,14 @@
           spec:
             instances: 2
             storage:
-              size: 5Gi
+              size: 15Gi
             bootstrap:
               initdb:
                 database: "{{ postgresql_db }}"
                 owner: "{{ postgresql_user }}"
             superuserSecret:
               name: "{{ cluster_name }}-superuser"
-    
+
     - name: Create superuser secret
       kubernetes.core.k8s:
         state: present

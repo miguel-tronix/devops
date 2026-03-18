@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cloudnativepg-operator
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://cloudnative-pg.github.io/charts # Correct Helm repo URL
+    targetRevision: 0.21.0
+    chart: cloudnative-pg # Correct chart name for the operator
+    helm:
+      values: |
+        replicaCount: 1
+        config:
+          db:
+            image:
+              repository: ghcr.io/cloudnative-pg/postgresql
+              tag: 15.4
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cnpg-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

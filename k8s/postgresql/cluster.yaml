@@ -1,28 +1,68 @@
 apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
-  name: postgresql-cluster
+  name: postgresql-pgvector
   namespace: database
 spec:
-  instances: 3
-  
-  # Image used for the cluster
-  imageName: ghcr.io/cloudnative-pg/postgresql:17
+  description: "PostgreSQL cluster with pgvector extension"
 
+  # Use the PostgreSQL 15 image with pgvector pre-installed
+  imageName: ghcr.io/cloudnative-pg/postgresql:15.4
+  enableSuperuserAccess: true
+
+  # Number of replicas
+  instances: 2
+
+  # Storage configuration
   storage:
     size: 10Gi
-  
+    storageClass: standard # Adjust based on your cluster
+
+  # PostgreSQL configuration
+  postgresql:
+    parameters:
+      shared_buffers: "256MB"
+      max_connections: "200"
+      log_statement: "all"
+      log_min_duration_statement: "1000" # Log statements taking >1 second
+    pg_hba:
+      - host all all 0.0.0.0/0 md5 # Allow connections with password auth
+
+  # Enable pgvector extension
   bootstrap:
     initdb:
-      database: "app_db"
-      owner: "app_user"
+      database: appdb
+      owner: appuser
       secret:
-        name: postgresql-app-user-creds
-  
-  # Enable backup (optional)
-  # backup:
-  #   barmanObjectStore:
-  #     ...
+        name: app-user-secret
+      postInitApplicationSQL:
+        - CREATE EXTENSION IF NOT EXISTS vector;
+        - CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        - CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+  # Backup configuration (optional)
+  backup:
+    retentionPolicy: "7d"
+    barmanObjectStore:
+      destinationPath: "s3://your-backup-bucket/" # Configure if you have S3
+      endpointURL: "https://s3.amazonaws.com"
+      s3Credentials:
+        accessKeyId:
+          name: backup-credentials
+          key: ACCESS_KEY_ID
+        secretAccessKey:
+          name: backup-credentials
+          key: ACCESS_SECRET_KEY
+
+  # Monitoring
   monitoring:
-    enablePodMonitor: true
+    enablePodMonitor: false # Set to true if you have Prometheus
+
+  # Resource limits
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "2Gi"
+      cpu: "1000m"

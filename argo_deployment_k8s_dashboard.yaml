@@ -1,0 +1,43 @@
+# Kubernetes Dashboard via ArgoCD
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kubernetes-dashboard
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes-retired.github.io/dashboard/
+    targetRevision: 7.14.0
+    chart: kubernetes-dashboard
+    helm:
+      values: |
+        app:
+          args:
+            - --auto-generate-certificates
+            - --enable-skip-login
+          ingress:
+            enabled: true
+            host: mintux.k8s.local
+            annotations:
+              kubernetes.io/ingress.class.name: nginx
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              nginx.ingress.kubernetes.io/ssl-redirect: "false"
+
+        # The following settings are for the dashboard itself
+        # Since we use port-forwarding, we don't need complex ingress/auth yet
+        apiServer:
+          enabled: true
+        auth:
+          enabled: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kubernetes-dashboard
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
