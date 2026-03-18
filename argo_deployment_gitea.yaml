@@ -21,7 +21,7 @@ spec:
             - name: GITEA__database__DB_TYPE
               value: "postgres"
             - name: GITEA__database__HOST
-              value: "postgresql-helm.database.svc.cluster.local:5432"
+              value: "postgresql-cluster-rw.database.svc.cluster.local:5432"
             - name: GITEA__database__NAME
               value: "app_db"
             - name: GITEA__database__USER

@@ -21,7 +21,7 @@ spec:
               tag: 15.4
   destination:
     server: https://kubernetes.default.svc
-    namespace: cnpg-system
+    namespace: database
   syncPolicy:
     automated:
       prune: true

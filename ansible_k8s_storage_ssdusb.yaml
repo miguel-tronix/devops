@@ -1,0 +1,60 @@
+---
+- name: Configure Local SSD Storage for Kubernetes
+  hosts: localhost # Usually run on the control node
+  connection: local
+  vars:
+    # ADJUST THIS PATH to where your 'kubectl' config lives:
+    # Standard: "~/.kube/config"
+    # MicroK8s: "/var/snap/microk8s/current/credentials/client.config"
+    # k3s: "/etc/rancher/k3s/k3s.yaml"
+    k8s_kubeconfig: "~/.kube/config"
+
+    ssd_path: "/mnt/ssd/postgresql"
+    node_name: "mintux" # Tip: run 'kubectl get nodes' to verify
+
+  tasks:
+    - name: Ensure SSD directory and permissions
+      become: yes
+      ansible.builtin.file:
+        path: "{{ ssd_path }}"
+        state: directory
+        mode: "0777"
+        owner: 26
+        group: 26
+
+    - name: Create StorageClass
+      kubernetes.core.k8s:
+        kubeconfig: "{{ k8s_kubeconfig }}"
+        definition:
+          apiVersion: storage.k8s.io/v1
+          kind: StorageClass
+          metadata:
+            name: local-ssd
+          provisioner: kubernetes.io/no-provisioner
+          volumeBindingMode: WaitForFirstConsumer
+
+    - name: Create PersistentVolume
+      kubernetes.core.k8s:
+        kubeconfig: "{{ k8s_kubeconfig }}"
+        definition:
+          apiVersion: v1
+          kind: PersistentVolume
+          metadata:
+            name: ssd-usb-pv
+          spec:
+            capacity:
+              storage: 100Gi
+            volumeMode: Filesystem
+            accessModes: [ReadWriteOnce]
+            persistentVolumeReclaimPolicy: Retain
+            storageClassName: local-ssd
+            local:
+              path: "{{ ssd_path }}"
+            nodeAffinity:
+              required:
+                nodeSelectorTerms:
+                  - matchExpressions:
+                      - key: kubernetes.io/hostname
+                        operator: In
+                        values:
+                          - "{{ node_name }}"

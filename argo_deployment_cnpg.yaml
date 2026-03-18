@@ -16,7 +16,8 @@ spec:
           instances: 1
           imageName: ghcr.io/cloudnative-pg/postgresql:16
           storage:
-            size: 10Gi
+            size: 30Gi
+            storageClass: local-ssd
           # Use this structure for 0.6.0 chart
           postgresql:
             parameters:

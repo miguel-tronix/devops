@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: apisix-gateway
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://charts.apiseven.com
+    chart: apisix
+    targetRevision: 2.10.0 # Check for latest 2026 version
+    helm:
+      values: |
+        # 1. Reduce Gateway Footprint
+        replicaCount: 1
+
+        # 2. Disable the Ingress Controller (unless you specifically want to use K8s Ingress resources)
+        # If you disable this, you configure APISIX via its Admin API/Dashboard only.
+        ingress-controller:
+          enabled: false
+
+        # 3. Disable the Dashboard (it's a resource hog)
+        dashboard:
+          enabled: false
+          
+        # 4. Shrink etcd to the absolute minimum
+        etcd:
+          replicaCount: 1
+          persistence:
+            enabled: true
+            storageClass: local-ssd # Keep your routes on the SSD!
+            size: 1Gi
+
+        # 5. Disable unused extra services
+        service:
+          type: ClusterIP # Use this if you have an existing LoadBalancer or NodePort
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apisix-gateway
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

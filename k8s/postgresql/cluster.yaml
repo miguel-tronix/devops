@@ -15,8 +15,8 @@ spec:
 
   # Storage configuration
   storage:
-    size: 10Gi
-    storageClass: standard # Adjust based on your cluster
+    size: 30Gi
+    storageClass: local-ssd
 
   # PostgreSQL configuration
   postgresql:
