@@ -5,6 +5,12 @@ metadata:
   namespace: argocd
 spec:
   project: default
+  ignoreDifferences:
+    - group: postgresql.cnpg.io
+      kind: Cluster
+      jsonPointers:
+        - /status
+        - /metadata/annotations
   source:
     repoURL: http://gitea_admin:twhljpF7zDnBzNuEQb4J@gitea-internal.code.svc.cluster.local:3000/gitea_admin/devops
     targetRevision: dev
