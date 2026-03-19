@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: postgresql-pgvector
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: http://gitea_admin:twhljpF7zDnBzNuEQb4J@gitea-internal.code.svc.cluster.local:3000/gitea_admin/devops
+    targetRevision: dev
+    path: k8s/postgresql
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: database
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
