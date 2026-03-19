@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: http://gitea_admin:twhljpF7zDnBzNuEQb4J@gitea-http.code.svc.cluster.local:3000/gitea_admin/devops
+    repoURL: http://gitea_admin:twhljpF7zDnBzNuEQb4J@gitea-internal.code.svc.cluster.local:3000/gitea_admin/devops
     targetRevision: dev
     path: k8s/postgresql
   destination:
