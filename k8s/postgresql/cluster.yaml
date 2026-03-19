@@ -6,29 +6,52 @@ metadata:
 spec:
   description: "PostgreSQL cluster with pgvector extension"
 
-  # Use the PostgreSQL 16 image with pgvector pre-installed
   imageName: ghcr.io/cloudnative-pg/postgresql:16
   enableSuperuserAccess: true
 
-  # Number of replicas
   instances: 1
 
-  # Storage configuration
+  enablePDB: true
+
+  replicationSlots:
+    highAvailability:
+      enabled: true
+      slotPrefix: _cnpg_
+    synchronizeReplicas:
+      enabled: true
+    updateInterval: 30
+
+  primaryUpdateStrategy: unsupervised
+  primaryUpdateMethod: restart
+  switchoverDelay: 3600
+  failoverDelay: 0
+  startDelay: 3600
+  stopDelay: 1800
+  maxSyncReplicas: 0
+  minSyncReplicas: 0
+  smartShutdownTimeout: 180
+
+  logLevel: info
+
+  affinity:
+    podAntiAffinityType: preferred
+
+  postgresUID: 26
+  postgresGID: 26
+
   storage:
     size: 30Gi
     storageClass: local-ssd
 
-  # PostgreSQL configuration
   postgresql:
     parameters:
       shared_buffers: "256MB"
       max_connections: "200"
       log_statement: "all"
-      log_min_duration_statement: "1000" # Log statements taking >1 second
+      log_min_duration_statement: "1000"
     pg_hba:
-      - host all all 0.0.0.0/0 md5 # Allow connections with password auth
+      - host all all 0.0.0.0/0 md5
 
-  # Enable pgvector extension
   bootstrap:
     initdb:
       database: appdb
@@ -40,11 +63,10 @@ spec:
         - CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
         - CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-  # Backup configuration (optional)
   backup:
     retentionPolicy: "7d"
     barmanObjectStore:
-      destinationPath: "s3://your-backup-bucket/" # Configure if you have S3
+      destinationPath: "s3://your-backup-bucket/"
       endpointURL: "https://s3.amazonaws.com"
       s3Credentials:
         accessKeyId:
@@ -54,11 +76,9 @@ spec:
           name: backup-credentials
           key: ACCESS_SECRET_KEY
 
-  # Monitoring
   monitoring:
-    enablePodMonitor: false # Set to true if you have Prometheus
+    enablePodMonitor: false
 
-  # Resource limits
   resources:
     requests:
       memory: "512Mi"
