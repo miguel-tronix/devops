@@ -6,12 +6,12 @@ metadata:
 spec:
   description: "PostgreSQL cluster with pgvector extension"
 
-  # Use the PostgreSQL 15 image with pgvector pre-installed
-  imageName: ghcr.io/cloudnative-pg/postgresql:15.4
+  # Use the PostgreSQL 16 image with pgvector pre-installed
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
   enableSuperuserAccess: true
 
   # Number of replicas
-  instances: 2
+  instances: 1
 
   # Storage configuration
   storage:

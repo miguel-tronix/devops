@@ -1,30 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: postgresql-cluster
+  name: postgresql-pgvector
   namespace: argocd
 spec:
   project: default
   source:
-    repoURL: https://cloudnative-pg.github.io/charts
-    targetRevision: 0.6.0 # Use appropriate version
-    chart: cluster
-    helm:
-      values: |
-        cluster:
-          name: postgresql-pgvector
-          instances: 1
-          imageName: ghcr.io/cloudnative-pg/postgresql:16
-          storage:
-            size: 30Gi
-            storageClass: local-ssd
-          # Use this structure for 0.6.0 chart
-          postgresql:
-            parameters:
-              shared_buffers: "256MB"
-          managed:
-            extensions:
-              - name: vector
+    repoURL: https://github.com/miguel-tronix/devops.git
+    targetRevision: dev
+    path: k8s/postgresql
   destination:
     server: https://kubernetes.default.svc
     namespace: database
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
