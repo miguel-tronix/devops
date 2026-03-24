@@ -8,7 +8,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: nutrition-web.example.com
+    - host: nutrition.k8s.local
       http:
         paths:
           - path: /
