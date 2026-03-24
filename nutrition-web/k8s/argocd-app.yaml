@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: nutrition-web
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: http://gitea-internal:3000/gitea_admin/nutrition_web.git
+    targetRevision: HEAD
+    path: devops/nutrition-web/k8s
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: nutrition-web
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

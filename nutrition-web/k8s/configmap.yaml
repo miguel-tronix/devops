@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nutrition-web-config
+  namespace: nutrition-web
+data:
+  DB_HOST: "postgresql-vector.database.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "nutrition_db"
+  DB_USER: "nutrition"

@@ -1,0 +1,47 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nutrition-web
+  namespace: nutrition-web
+  labels:
+    app: nutrition-web
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nutrition-web
+  template:
+    metadata:
+      labels:
+        app: nutrition-web
+    spec:
+      containers:
+        - name: nutrition-web
+          image: localhost:32000/nutrition-web:latest
+          ports:
+            - containerPort: 8080
+              name: http
+          envFrom:
+            - configMapRef:
+                name: nutrition-web-config
+            - secretRef:
+                name: nutrition-web-secret
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          readinessProbe:
+            httpGet:
+              path: /NutritionWeb/
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /NutritionWeb/
+              port: 8080
+            initialDelaySeconds: 90
+            periodSeconds: 15
