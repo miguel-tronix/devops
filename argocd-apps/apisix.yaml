@@ -1,0 +1,51 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: apisix
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://charts.apiseven.com
+    targetRevision: 1.9.0
+    chart: apisix
+    helm:
+      releaseName: apisix
+      parameters:
+        - name: replicaCount
+          value: "1"
+        - name: ingress-controller.enabled
+          value: "false"
+        - name: dashboard.enabled
+          value: "false"
+        - name: etcd.replicaCount
+          value: "1"
+        - name: etcd.persistence.enabled
+          value: "true"
+        - name: etcd.persistence.storageClass
+          value: "local-ssd"
+        - name: etcd.persistence.size
+          value: "1Gi"
+        - name: service.type
+          value: "ClusterIP"
+        - name: apisix.adminKey
+          value: "admin-secret-change-me"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: apisix
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

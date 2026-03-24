@@ -1,0 +1,55 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: vault
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://helm.releases.hashicorp.com
+    targetRevision: 0.27.0
+    chart: vault
+    helm:
+      releaseName: vault
+      parameters:
+        - name: server.dev.enabled
+          value: "false"
+        - name: server.ha.enabled
+          value: "true"
+        - name: server.ha.raft.enabled
+          value: "true"
+        - name: server.ha.raft.setNodeId
+          value: "true"
+        - name: server.dataStorage.enabled
+          value: "true"
+        - name: server.dataStorage.size
+          value: "10Gi"
+        - name: server.dataStorage.storageClass
+          value: "local-ssd"
+        - name: injector.enabled
+          value: "true"
+        - name: server.ingress.enabled
+          value: "true"
+        - name: server.ingress.ingressClassName
+          value: "nginx"
+        - name: server.ingress.hosts[0].host
+          value: "vault.k8s.local"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vault
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

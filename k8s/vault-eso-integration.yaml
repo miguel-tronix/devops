@@ -1,0 +1,56 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ClusterSecretStore
+metadata:
+  name: vault-backend
+spec:
+  provider:
+    vault:
+      server: "http://vault.vault.svc.cluster.local:8200"
+      path: "secret"
+      version: "v2"
+      auth:
+        # We'll use Kubernetes auth for the operator
+        kubernetes:
+          mountPath: "kubernetes"
+          role: "external-secrets"
+          serviceAccountRef:
+            name: "external-secrets"
+            namespace: "external-secrets"
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: gitea-secrets-vault
+  namespace: code
+spec:
+  refreshInterval: "1h"
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: gitea-db-secret # This will create/update the K8s Secret Gitea uses
+    creationPolicy: Owner
+  data:
+    - secretKey: DB_PASSWD
+      remoteRef:
+        key: gitea/db
+        property: password
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: gitea-redis-vault
+  namespace: code
+spec:
+  refreshInterval: "1h"
+  secretStoreRef:
+    name: vault-backend
+    kind: ClusterSecretStore
+  target:
+    name: gitea-redis-secret
+    creationPolicy: Owner
+  data:
+    - secretKey: redis-password
+      remoteRef:
+        key: gitea/redis
+        property: password
