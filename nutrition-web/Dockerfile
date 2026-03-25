@@ -1,4 +1,4 @@
-FROM maven:3.9-eclipse-temurin-17 AS build
+FROM docker.io/library/maven:3.9-eclipse-temurin-17 AS build
 WORKDIR /app
 COPY nutrition-web/pom.xml .
 RUN mvn dependency:go-offline -B

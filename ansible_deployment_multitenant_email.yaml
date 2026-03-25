@@ -1,0 +1,161 @@
+---
+- name: Deploy multi-tenant email testing environment on Kubernetes
+  hosts: localhost
+  gather_facts: false
+  vars:
+    # List of tenants with their domains
+    tenants:
+      - name: tenant-a
+        domain: tenant-a.test
+      - name: tenant-b
+        domain: tenant-b.test
+      - name: tenant-c
+        domain: tenant-c.test
+
+    # DNS infrastructure namespace
+    dns_namespace: email-infra
+
+    # Mail server image
+    mail_image: ghcr.io/mailu/postfix:latest
+
+    # Network policies: allow communication only within same tenant and with dns_namespace
+    allow_namespaces:
+      - "{{ dns_namespace }}"
+      # The tenant's own namespace is included via loop
+
+  tasks:
+    # -------------------------------------------------------------------------
+    # 1. Create required namespaces
+    # -------------------------------------------------------------------------
+    - name: Create DNS namespace
+      kubernetes.core.k8s:
+        name: "{{ dns_namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Create tenant namespaces
+      kubernetes.core.k8s:
+        name: "{{ item.name }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+      loop: "{{ tenants }}"
+
+    # -------------------------------------------------------------------------
+    # 2. Deploy bind9 DNS server (ConfigMap, Deployment, Service)
+    # -------------------------------------------------------------------------
+    - name: Generate bind9 ConfigMap data from template
+      set_fact:
+        bind9_zone_files: "{{ lookup('template', 'bind9_zone_files.j2') }}"
+      vars:
+        tenants: "{{ tenants }}"
+
+    - name: Create bind9 ConfigMap
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: bind9-config
+            namespace: "{{ dns_namespace }}"
+          data:
+            named.conf: |
+              options {
+                directory "/var/cache/bind";
+                recursion yes;
+                allow-query { any; };
+                allow-transfer { none; };
+                forwarders {
+                  8.8.8.8;
+                  8.8.4.4;
+                };
+              };
+              {% for tenant in tenants %}
+              zone "{{ tenant.domain }}" {
+                type master;
+                file "/etc/bind/zones/db.{{ tenant.name }}";
+              };
+              {% endfor %}
+            {% for tenant in tenants %}
+            db.{{ tenant.name }}: |
+              $TTL 604800
+              @ IN SOA ns1.{{ tenant.domain }}. admin.{{ tenant.domain }}. (
+                2024032601 ; Serial
+                604800 ; Refresh
+                86400 ; Retry
+                2419200 ; Expire
+                604800 ) ; Negative Cache TTL
+              ;
+              @ IN NS ns1
+              @ IN MX 10 mail
+              mail IN A 10.244.1.50
+              ns1 IN A 10.96.0.10
+              user1 IN A 10.244.1.51
+              user2 IN A 10.244.1.52
+              admin IN A 10.244.1.53
+            {% endfor %}
+
+    - name: Create bind9 Deployment
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: bind9
+            namespace: "{{ dns_namespace }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: bind9
+            template:
+              metadata:
+                labels:
+                  app: bind9
+              spec:
+                containers:
+                  - name: bind9
+                    image: ubuntu/bind9:latest
+                    ports:
+                      - containerPort: 53
+                        protocol: UDP
+                      - containerPort: 53
+                        protocol: TCP
+                    volumeMounts:
+                      - name: config
+                        mountPath: /etc/bind
+                volumes:
+                  - name: config
+                    configMap:
+                      name: bind9-config
+
+    - name: Create bind9 Service
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: dns
+            namespace: "{{ dns_namespace }}"
+          spec:
+            selector:
+              app: bind9
+            ports:
+              - port: 53
+                targetPort: 53
+                protocol: UDP
+                name: dns-udp
+              - port: 53
+                targetPort: 53
+                protocol: TCP
+                name: dns-tcp
+
+    # -------------------------------------------------------------------------
+    # 3. Deploy mail server per tenant
+    # -------------------------------------------------------------------------
+    - name: Create mailserver for each tenant
+      include_tasks: deploy_tenant_mailserver.yml
+      loop: "{{ tenants }}"
+      loop_control:
+        loop_var: tenant

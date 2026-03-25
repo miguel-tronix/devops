@@ -1,0 +1,126 @@
+---
+- name: Deploy mailserver for tenant {{ tenant.name }}
+  block:
+    - name: Create mailserver ConfigMap for tenant
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: mailserver-config
+            namespace: "{{ tenant.name }}"
+          data:
+            postfix-main.cf: |
+              myhostname = mail.{{ tenant.domain }}
+              mydomain = {{ tenant.domain }}
+              myorigin = $mydomain
+              mydestination = $myhostname, localhost.$mydomain, localhost, $mydomain
+              mynetworks = 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+              relayhost = dns.{{ dns_namespace }}.svc.cluster.local
+              mail_extra_recipient_maps = hash:/etc/postfix/virtual
+              virtual_alias_maps = hash:/etc/postfix/virtual
+            virtual: |
+              admin@{{ tenant.domain }} admin
+              support@{{ tenant.domain }} support
+              test@{{ tenant.domain }} user1
+
+    - name: Create mailserver Deployment
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: mailserver
+            namespace: "{{ tenant.name }}"
+          spec:
+            replicas: 1
+            selector:
+              matchLabels:
+                app: mailserver
+            template:
+              metadata:
+                labels:
+                  app: mailserver
+                  tenant: "{{ tenant.name }}"
+              spec:
+                containers:
+                  - name: postfix
+                    image: "{{ mail_image }}"
+                    env:
+                      - name: DOMAIN
+                        value: "{{ tenant.domain }}"
+                      - name: HOSTNAME
+                        value: "mail.{{ tenant.domain }}"
+                    ports:
+                      - containerPort: 25
+                        name: smtp
+                      - containerPort: 143
+                        name: imap
+                    volumeMounts:
+                      - name: config
+                        mountPath: /etc/postfix
+                      - name: maildata
+                        mountPath: /var/mail
+                volumes:
+                  - name: config
+                    configMap:
+                      name: mailserver-config
+                  - name: maildata
+                    emptyDir: {}
+
+    - name: Create mailserver Service
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: v1
+          kind: Service
+          metadata:
+            name: mail
+            namespace: "{{ tenant.name }}"
+          spec:
+            selector:
+              app: mailserver
+            ports:
+              - port: 25
+                targetPort: 25
+                name: smtp
+              - port: 143
+                targetPort: 143
+                name: imap
+
+    - name: Create NetworkPolicy for tenant isolation
+      kubernetes.core.k8s:
+        definition:
+          apiVersion: networking.k8s.io/v1
+          kind: NetworkPolicy
+          metadata:
+            name: email-isolation
+            namespace: "{{ tenant.name }}"
+          spec:
+            podSelector:
+              matchLabels:
+                app: mailserver
+            policyTypes:
+              - Ingress
+              - Egress
+            ingress:
+              - from:
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: "{{ dns_namespace }}"
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: "{{ tenant.name }}"
+                ports:
+                  - port: 25
+                  - port: 143
+            egress:
+              - to:
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: "{{ dns_namespace }}"
+                  - namespaceSelector:
+                      matchLabels:
+                        kubernetes.io/metadata.name: "{{ tenant.name }}"
+                ports:
+                  - port: 53
+                    protocol: UDP
