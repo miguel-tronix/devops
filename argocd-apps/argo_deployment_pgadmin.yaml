@@ -1,0 +1,55 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: pgadmin4
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://helm.runix.net
+    chart: pgadmin4
+    targetRevision: 1.9.9 # Check for latest version
+    helm:
+      values: |
+        image:
+          tag: "8.12"
+        env:
+          email: "admin@pgadmin.com"
+          password: "admin"  # Login for the pgAdmin Web UI (different from database user)
+
+        ingress:
+          enabled: true
+          annotations:
+            kubernetes.io/ingress.class: "nginx"
+          hosts:
+            - host: pgadmin.k8s.local
+              paths:
+                - path: /
+                  pathType: Prefix
+
+        persistentVolume:
+          enabled: true
+          size: 1Gi  # Stores server connection configurations
+
+        serverDefinitions:
+          enabled: true
+          servers:
+            PGVectorServer:
+              Name: "PostgreSQL PGVector Cluster"
+              Group: "Servers"
+              Port: 5432
+              Username: "appuser"
+              Host: "postgresql-pgvector-rw.database.svc.cluster.local"
+              SSLMode: "require"
+              MaintenanceDB: "appdb"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: pgadmin # Create this namespace
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+    automated:
+      prune: true
+      selfHeal: true

@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: deepdive-config
+  namespace: deepdive
+data:
+  # Using standard k8s DNS for services inside the cluster
+  POSTGRES_HOST: "postgres.database.svc.cluster.local"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "deepdive"
+  POSTGRES_USER: "deepdive_user"
+  REDIS_URL: "redis://redis-master.cache.svc.cluster.local:6379/0"

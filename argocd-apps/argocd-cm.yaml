@@ -1,0 +1,10 @@
+# In your Argo CD configuration or as an Application source
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  helm.repositories: |
+    - url: https://helm.runix.net
+      name: runix

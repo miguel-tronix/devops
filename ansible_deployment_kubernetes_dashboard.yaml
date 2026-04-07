@@ -1,0 +1,94 @@
+---
+- name: Deploy Kubernetes Dashboard with auto certs and skip login
+  hosts: localhost
+  gather_facts: false
+  vars:
+    dashboard_namespace: kubernetes-dashboard
+    dashboard_host: dashboard.k8s.local # Change to your desired hostname
+    ingress_class: nginx # Change if using a different ingress controller
+    helm_chart_version: "7.14.0" # Adjust as needed
+    helm_repo_name: kubernetes-dashboard
+    helm_repo_url: https://kubernetes-retired.github.io/dashboard/
+
+  tasks:
+    - name: Ensure helm binary is present
+      ansible.builtin.get_url:
+        url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        dest: /tmp/get_helm.sh
+        mode: "0755"
+      register: get_helm_script
+      changed_when: false
+
+    - name: Install helm if not already present
+      ansible.builtin.shell: /tmp/get_helm.sh
+      args:
+        creates: /usr/local/bin/helm
+      when: not ansible_facts.get('helm_version', false)
+
+    - name: Remove helm installation script
+      ansible.builtin.file:
+        path: /tmp/get_helm.sh
+        state: absent
+
+    - name: Add Kubernetes Dashboard Helm repository
+      kubernetes.core.helm_repository:
+        name: "{{ helm_repo_name }}"
+        repo_url: "{{ helm_repo_url }}"
+        state: present
+
+    - name: Create namespace for dashboard
+      kubernetes.core.k8s:
+        name: "{{ dashboard_namespace }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+
+    - name: Deploy Kubernetes Dashboard via Helm
+      kubernetes.core.helm:
+        name: kubernetes-dashboard
+        namespace: "{{ dashboard_namespace }}"
+        chart_ref: "{{ helm_repo_name }}/kubernetes-dashboard"
+        chart_version: "{{ helm_chart_version }}"
+        release_values:
+          app:
+            args:
+              - --auto-generate-certificates
+              - --enable-skip-login
+          ingress:
+            enabled: true
+            ingressClassName: "{{ ingress_class }}"
+            hosts:
+              - "{{ dashboard_host }}"
+            annotations:
+              # For nginx ingress controller
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              nginx.ingress.kubernetes.io/ssl-redirect: "false"
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+          apiServer:
+            enabled: true
+          auth:
+            enabled: true
+        state: present
+        wait: true
+        wait_timeout: 5m
+
+    - name: Wait for dashboard pod to be ready
+      kubernetes.core.k8s_info:
+        api_version: v1
+        kind: Pod
+        namespace: "{{ dashboard_namespace }}"
+        label_selectors:
+          - app.kubernetes.io/name=kubernetes-dashboard
+      register: dashboard_pods
+      until: dashboard_pods.resources | length > 0 and (dashboard_pods.resources | map(attribute='status.phase') | select('equalto', 'Running') | list | length > 0)
+      retries: 30
+      delay: 10
+
+    - name: Display dashboard access information
+      ansible.builtin.debug:
+        msg:
+          - "Kubernetes Dashboard deployed successfully!"
+          - "Access URL: https://{{ dashboard_host }}"
+          - "Skip login is enabled – you will be taken directly to the dashboard."
+          - "Make sure you have {{ dashboard_host }} pointing to your Ingress controller's IP in /etc/hosts or DNS."
+          - 'If using minikube, you can run: minikube addons enable ingress && echo "$(minikube ip) {{ dashboard_host }}" | sudo tee -a /etc/hosts'

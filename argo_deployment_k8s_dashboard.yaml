@@ -18,16 +18,6 @@ spec:
           args:
             - --auto-generate-certificates
             - --enable-skip-login
-          ingress:
-            enabled: true
-            host: mintux.k8s.local
-            annotations:
-              kubernetes.io/ingress.class.name: nginx
-              nginx.ingress.kubernetes.io/rewrite-target: /
-              nginx.ingress.kubernetes.io/ssl-redirect: "false"
-
-        # The following settings are for the dashboard itself
-        # Since we use port-forwarding, we don't need complex ingress/auth yet
         apiServer:
           enabled: true
         auth:
