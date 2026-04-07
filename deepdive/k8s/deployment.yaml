@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: deepdive-api
-          image: ghcr.io/miguel-tronix/deepdivee:latest # Update this to your image path
+          image: localhost:32000/llm/agents/deepdivee:0.1.0
           imagePullPolicy: Always
           ports:
             - containerPort: 8000

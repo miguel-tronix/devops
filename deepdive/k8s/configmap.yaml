@@ -5,7 +5,7 @@ metadata:
   namespace: deepdive
 data:
   # Using standard k8s DNS for services inside the cluster
-  POSTGRES_HOST: "postgres.database.svc.cluster.local"
+  POSTGRES_HOST: "postgresql-pgvector-rw.database.svc.cluster.local"
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "deepdive"
   POSTGRES_USER: "deepdive_user"
