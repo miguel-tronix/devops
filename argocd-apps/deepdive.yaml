@@ -8,8 +8,8 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: http://gitea-internal:3000/gitea_admin/devops.git # Internal URL from your cluster to fetch from Gitea
-    targetRevision: HEAD
+    repoURL: http://gitea_admin:twhljpF7zDnBzNuEQb4J@gitea-internal.code.svc.cluster.local:3000/gitea_admin/devops.git
+    targetRevision: dev
     path: deepdive/k8s
   destination:
     server: https://kubernetes.default.svc
