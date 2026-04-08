@@ -10,11 +10,11 @@ spec:
   source:
     repoURL: https://helm.runix.net
     chart: pgadmin4
-    targetRevision: 1.9.9 # Check for latest version
+    targetRevision: 1.9.9 # Check for latest version:x
     helm:
       values: |
         image:
-          tag: "8.12"
+          tag: "9.14"
         env:
           email: "admin@pgadmin.com"
           password: "admin"  # Login for the pgAdmin Web UI (different from database user)
