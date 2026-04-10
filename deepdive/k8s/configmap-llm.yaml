@@ -4,7 +4,7 @@ metadata:
   name: llm-pretraining-config
   namespace: deepdive
 data:
-  BASEDATA_PATH: "/opt/llm-data-pretraining"
+  BASEDATA_PATH: "/opt/llm-data-pretraining/data"
   RAWDATA_PATH: "rawdata"
   PRECLEANDATA_PATH: "precleandata"
   CLEANDATA_PATH: "cleandata"

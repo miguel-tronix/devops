@@ -14,7 +14,7 @@ spec:
             name: llm-pretraining-config
         volumeMounts:
         - name: data-volume
-          mountPath: /opt/llm-data-pretraining
+          mountPath: /opt/llm-data-pretraining/data
         resources:
           requests:
             cpu: "2"
