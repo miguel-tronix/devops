@@ -33,10 +33,6 @@ spec:
               port: http
             initialDelaySeconds: 15
             periodSeconds: 10
-          volumeMounts:
-            - name: tls-certs
-              mountPath: /etc/nginx/certs
-              readOnly: true
         - name: tls-proxy
           image: nginx:alpine
           ports:
