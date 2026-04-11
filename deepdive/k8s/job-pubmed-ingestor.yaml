@@ -19,9 +19,21 @@ spec:
           envFrom:
             - configMapRef:
                 name: pubmed-ingestor-config
+          env:
+            - name: DEEPDIVE_API_URL
+              value: "https://deepdive-api.deepdive.svc.cluster.local:443"
+            - name: SSL_CERT
+              value: "/etc/client-certs/client.crt"
+            - name: SSL_KEY
+              value: "/etc/client-certs/client.key"
+            - name: SSL_CA
+              value: "/etc/client-certs/ca.crt"
           volumeMounts:
             - name: data-volume
               mountPath: /opt/llm-data-pretraining/data
+            - name: client-certs
+              mountPath: /etc/client-certs
+              readOnly: true
           resources:
             requests:
               cpu: "1"
@@ -36,4 +48,14 @@ spec:
         - name: data-volume
           persistentVolumeClaim:
             claimName: llm-data-pvc
+        - name: client-certs
+          secret:
+            secretName: deepdive-tls-certs
+            items:
+              - key: client.crt
+                path: client.crt
+              - key: client.key
+                path: client.key
+              - key: ca.crt
+                path: ca.crt
   backoffLimit: 4

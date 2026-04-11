@@ -29,7 +29,42 @@ spec:
                 name: deepdive-secrets
           readinessProbe:
             httpGet:
-              path: /health # Maps to the /health route built into main.py
+              path: /health
               port: http
             initialDelaySeconds: 15
             periodSeconds: 10
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /etc/nginx/certs
+              readOnly: true
+        - name: tls-proxy
+          image: nginx:alpine
+          ports:
+            - containerPort: 8443
+              name: https
+          volumeMounts:
+            - name: tls-certs
+              mountPath: /etc/nginx/certs
+              readOnly: true
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx-tls.conf
+          livenessProbe:
+            tcpSocket:
+              port: 8443
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "64Mi"
+            limits:
+              cpu: "200m"
+              memory: "128Mi"
+      volumes:
+        - name: tls-certs
+          secret:
+            secretName: deepdive-tls-certs
+        - name: nginx-config
+          configMap:
+            name: deepdive-nginx-tls

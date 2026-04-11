@@ -10,6 +10,6 @@ spec:
     app: deepdive
   ports:
     - protocol: TCP
-      port: 8000
-      targetPort: http
+      port: 443
+      targetPort: https
   type: ClusterIP
