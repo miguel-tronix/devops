@@ -1,0 +1,39 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: pubmed-ingestor-job
+  namespace: deepdive
+  labels:
+    app: deepdive
+    component: pubmed-ingestor
+spec:
+  template:
+    metadata:
+      labels:
+        app: deepdive
+        component: pubmed-ingestor
+    spec:
+      containers:
+        - name: ingestor
+          image: localhost:32000/llm/ingestion/pubmed-ingestor:0.1.0
+          envFrom:
+            - configMapRef:
+                name: pubmed-ingestor-config
+          volumeMounts:
+            - name: data-volume
+              mountPath: /opt/llm-data-pretraining/data
+          resources:
+            requests:
+              cpu: "1"
+              memory: "1Gi"
+            limits:
+              cpu: "2"
+              memory: "2Gi"
+      restartPolicy: OnFailure
+      securityContext:
+        fsGroup: 1000
+      volumes:
+        - name: data-volume
+          persistentVolumeClaim:
+            claimName: llm-data-pvc
+  backoffLimit: 4
