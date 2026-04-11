@@ -8,7 +8,7 @@ spec:
     spec:
       containers:
         - name: pretraining
-          image: localhost:32000/llm/pretraining/llm-data-pretraining:0.2.1
+          image: localhost:32000/llm/pretraining/llm-data-pretraining:0.2.2
           envFrom:
             - configMapRef:
                 name: llm-pretraining-config
@@ -24,7 +24,7 @@ spec:
               memory: "8Gi"
       restartPolicy: OnFailure
       securityContext:
-        fsGroup: 1000 # Adjust if the Dockerfile appuser has a different entry
+        fsGroup: 999 # Matches GID of appuser defined in the Dockerfile
       volumes:
         - name: data-volume
           persistentVolumeClaim:
