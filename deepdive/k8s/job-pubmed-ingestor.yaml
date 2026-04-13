@@ -20,8 +20,6 @@ spec:
             - configMapRef:
                 name: pubmed-ingestor-config
           env:
-            - name: DEEPDIVE_API_URL
-              value: "https://deepdive-api.deepdive.svc.cluster.local:443"
             - name: SSL_CERT
               value: "/etc/client-certs/client.crt"
             - name: SSL_KEY
