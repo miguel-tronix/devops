@@ -7,6 +7,6 @@ metadata:
     app: deepdive
     component: pubmed-ingestor
 data:
-  DEEPDIVE_API_URL: "https://deepdive-api:443"
+  DEEPDIVE_API_URL: "http://localhost:8080"
   PUBMED_BATCH_SIZE: "50"
   PUBMED_DATA_FILE: "/opt/llm-data-pretraining/data/cleandata/final_abstracts_pubmed.jsonl"
