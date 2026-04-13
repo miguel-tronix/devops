@@ -42,7 +42,7 @@ spec:
               while ! pgrep -f "pubmed_ingestor.cli" > /dev/null; do sleep 1; done
               while pgrep -f "pubmed_ingestor.cli" > /dev/null; do sleep 2; done
               echo "Main process finished, exiting sidecar..."
-              kill $NGINX_PID
+              kill -11 $NGINX_PID
               wait $NGINX_PID
           volumeMounts:
             - name: client-certs
