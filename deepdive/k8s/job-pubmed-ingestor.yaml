@@ -36,7 +36,7 @@ spec:
           args:
             - |
               nginx -g 'daemon off;' &
-              export NGINX_PID=$!
+              NGINX_PID=$!
               # Wait for the main container (ingestor) to start and then exit
               # Since we share the process namespace, we can see the ingestor process
               while ! pgrep -f "pubmed_ingestor.cli" > /dev/null; do sleep 1; done
