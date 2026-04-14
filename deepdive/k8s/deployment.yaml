@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: deepdive-api
-          image: localhost:32000/llm/agents/deepdivee:0.1.4
+          image: localhost:32000/llm/agents/deepdivee:0.1.6
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
