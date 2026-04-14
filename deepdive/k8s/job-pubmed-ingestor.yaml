@@ -40,7 +40,7 @@ spec:
               # Wait for the main container (ingestor) to start and then exit
               # Since we share the process namespace, we can see the ingestor process
               while ! pgrep -f "pubmed_ingestor.cli" > /dev/null; do sleep 1; done
-              while pgrep -f "pubmed_ingestor.cli" > /dev/null; do sleep 2; done
+              while pgrep -f "pubmed_ingestor.cli" | wc -l > 1 > /dev/null; do sleep 2; done
               echo "Main process finished, exiting sidecar..."
               kill -11 $NGINX_PID
               wait $NGINX_PID
